@@ -19,7 +19,11 @@ ASSEMBLYAI_API_KEY = os.getenv('ASSEMBLYAI_API_KEY')
 
 
 app = Flask(__name__) # creating instance
-CORS(app,expose_headers=['X-Question-Number']) #frontend is accessing the question number from headers by X-Question-Number
+CORS(
+    app,
+    origins=["https://ai-powered-mock-interview-yv98.onrender.com"],
+    expose_headers=["X-Question-Number"] #frontend is accessing the question number from headers by X-Question-Number
+) 
 
 #coverting text in audio with murf.ai
 
