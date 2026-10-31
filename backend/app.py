@@ -10,6 +10,7 @@ import base64
 import tempfile
 import assemblyai as aai
 import json
+from google.genai.errors import APIError
 
 load_dotenv()
 
@@ -119,36 +120,71 @@ Keep it short, conversational, and adaptive!"""
 @app.route('/start-interview', methods=['POST'])
 
 def start_interview():
-    data = request.json 
 
-    global question_count, current_subject, agent, checkpointer #getting global variable if update it it will directly updated in global to
+    data = request.json
 
-    current_subject = data.get('subject','python') #getting subject selected by user from frontend accesing through the key 'subject' and default is 'python'
-    print("Question's on the subject is\n"+current_subject)
+    global question_count, current_subject, agent, checkpointer
+
+    current_subject = data.get('subject', 'python')
+
+    print("Question's on the subject is\n" + current_subject)
 
     question_count = 1
 
-    checkpointer = InMemorySaver() #stores in RAM for that conversation untill we refresh or exit lke shortterm memory
+    checkpointer = InMemorySaver()
 
     agent = create_agent(
-        model = model,
-        tools = [],
-        checkpointer= checkpointer
+        model=model,
+        tools=[],
+        checkpointer=checkpointer
     )
 
-    formated_prompt = INTERVIEW_PROMPT.format(subject=current_subject) 
+    formated_prompt = INTERVIEW_PROMPT.format(subject=current_subject)
 
-    config = {'configurable':{'thread_id':thread_id}}
-    response = agent.invoke({
-        'messages':[{'role':'system','content':formated_prompt},
-                    {'role':'user','content':f"Start the interview with a warm greeting and ask the first question about {current_subject}. Keep it SHORT (1-2 sentences)."}]
-    },config=config)
+    config = {'configurable': {'thread_id': thread_id}}
 
-    question = response['messages'][-1].content[0]['text']
-    print(question)
+    try:
+        response = agent.invoke({
+            'messages': [
+                {'role': 'system', 'content': formated_prompt},
+                {
+                    'role': 'user',
+                    'content': f"Start the interview with a warm greeting and ask the first question about {current_subject}. Keep it SHORT (1-2 sentences)."
+                }
+            ]
+        }, config=config)
 
-    return stream_audio(question),{'Content-Type':"text/plain"}
+        question = response['messages'][-1].content[0]['text']
 
+        print(question)
+
+        return stream_audio(question), {'Content-Type': 'text/plain'}
+
+    except APIError as e:
+
+        print("Gemini API Error:", e)
+
+        if e.code == 429:
+            return jsonify({
+                "error": "Gemini API rate limit reached. Please try again shortly."
+            }), 429
+
+        elif e.code in [503, 504]:
+            return jsonify({
+                "error": "Gemini is temporarily unavailable. Please try again."
+            }), 503
+
+        return jsonify({
+            "error": "An error occurred while generating the interview question."
+        }), 500
+
+    except Exception as e:
+
+        print("Unexpected error:", e)
+
+        return jsonify({
+            "error": "Something went wrong while starting the interview."
+        }), 500
 
 
 #user audio into text
