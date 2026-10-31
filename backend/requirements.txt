@@ -1,0 +1,14 @@
+flask
+langchain
+langgraph
+python-dotenv
+langchain-google-genai
+flask-cors
+assemblyai
+gunicorn
+requests
+
+
+
+
+#pip install -r requirements.txt
